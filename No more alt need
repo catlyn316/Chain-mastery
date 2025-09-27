@@ -1,0 +1,539 @@
+-- 基本服務與玩家
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+-- 防止重複載入
+if _G.maolingHubLoaded then
+    return
+end
+_G.maolingHubLoaded = true
+
+-- GUI 主體
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "MaolingHub"
+
+-- 修正：主框架樣式
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 450, 0, 350)
+Frame.Position = UDim2.new(0.5, -225, 0.5, -175)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+-- 添加漸層效果
+local gradient = Instance.new("UIGradient", Frame)
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 50))
+}
+gradient.Rotation = 45
+
+-- 添加外發光效果
+local stroke = Instance.new("UIStroke", Frame)
+stroke.Color = Color3.fromRGB(100, 150, 255)
+stroke.Thickness = 2
+stroke.Transparency = 0.5
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 15)
+
+-- 修正：標題樣式
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, -80, 0, 50)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "✨ 貓玲的腳本區 ✨"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 22
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- 添加標題發光效果
+local titleStroke = Instance.new("UIStroke", Title)
+titleStroke.Color = Color3.fromRGB(100, 150, 255)
+titleStroke.Thickness = 1
+titleStroke.Transparency = 0.3
+
+-- 修正：關閉按鈕樣式和功能
+local Close = Instance.new("TextButton", Frame)
+Close.Size = UDim2.new(0, 35, 0, 35)
+Close.Position = UDim2.new(1, -40, 0, 8)
+Close.Text = "x"
+Close.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 18
+Close.BorderSizePixel = 0
+
+-- 添加關閉按鈕效果
+local closeGradient = Instance.new("UIGradient", Close)
+closeGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(220, 60, 60)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 40, 40))
+}
+
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 8)
+
+-- 修正：關閉按鈕功能
+Close.MouseButton1Click:Connect(function()
+    -- 停止所有功能
+    invisSpeedEnabled = false
+    autoAttackEnabled = false
+    autoAttackTPEnabled = false
+    disguiseAttackEnabled = false
+    
+    ScreenGui:Destroy()
+    _G.maolingHubLoaded = false
+end)
+
+-- 修正：最小化按鈕樣式
+local Minimize = Instance.new("TextButton", Frame)
+Minimize.Size = UDim2.new(0, 35, 0, 35)
+Minimize.Position = UDim2.new(1, -80, 0, 8)
+Minimize.Text = "─"
+Minimize.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+Minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 16
+Minimize.BorderSizePixel = 0
+
+local minimizeGradient = Instance.new("UIGradient", Minimize)
+minimizeGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 100, 120)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 80, 100))
+}
+
+Instance.new("UICorner", Minimize).CornerRadius = UDim.new(0, 8)
+
+-- 修正：側邊欄為可滾動
+local SideBar = Instance.new("ScrollingFrame", Frame)
+SideBar.Size = UDim2.new(0, 130, 1, -55)
+SideBar.Position = UDim2.new(0, 5, 0, 50)
+SideBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+SideBar.BorderSizePixel = 0
+SideBar.ScrollBarThickness = 6
+SideBar.CanvasSize = UDim2.new(0, 0, 0, 200)
+SideBar.AutomaticCanvasSize = Enum.AutomaticSize.Y
+SideBar.ScrollingDirection = Enum.ScrollingDirection.Y
+
+-- 添加側邊欄樣式
+local sidebarGradient = Instance.new("UIGradient", SideBar)
+sidebarGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 35, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(45, 45, 65))
+}
+
+Instance.new("UICorner", SideBar).CornerRadius = UDim.new(0, 10)
+
+-- 添加UIListLayout到側邊欄
+local sidebarLayout = Instance.new("UIListLayout", SideBar)
+sidebarLayout.Padding = UDim.new(0, 8)
+sidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- 修正：內容區域
+local Content = Instance.new("Frame", Frame)
+Content.Size = UDim2.new(1, -145, 1, -55)
+Content.Position = UDim2.new(0, 140, 0, 50)
+Content.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+Content.BorderSizePixel = 0
+
+local contentGradient = Instance.new("UIGradient", Content)
+contentGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 60)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 75))
+}
+
+Instance.new("UICorner", Content).CornerRadius = UDim.new(0, 10)
+
+-- 修正：縮小功能的尺寸
+local isMinimized = false
+local fullSize = UDim2.new(0, 450, 0, 350)
+local miniSize = UDim2.new(0, 450, 0, 50)
+
+Minimize.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    SideBar.Visible = not isMinimized
+    Content.Visible = not isMinimized
+    Frame.Size = isMinimized and miniSize or fullSize
+end)
+
+-- 修正：簡單高亮文字的分區按鈕樣式
+local function createSectionButton(text, order, parent)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(0, 120, 0, 45)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(85, 85, 105)
+    
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextTransparency = 0
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
+    btn.BorderSizePixel = 0
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(150, 180, 255)
+    btnStroke.Thickness = 1
+    btnStroke.Transparency = 0.6
+    
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(105, 105, 125)
+        btnStroke.Transparency = 0.3
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(85, 85, 105)
+        btnStroke.Transparency = 0.6
+    end)
+    
+    return btn
+end
+
+-- 修正：簡單高亮文字的一般按鈕樣式
+local function createButton(text, order, parent, spacing)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(0, 180, 0, 35)
+    btn.Position = UDim2.new(0.5, -90, 0, 10 + (order - 1) * spacing)
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(80, 140, 220)
+    
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 16
+    btn.Font = Enum.Font.GothamBold
+    btn.BorderSizePixel = 0
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(120, 170, 255)
+    btnStroke.Thickness = 1
+    btnStroke.Transparency = 0.6
+    
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(100, 160, 240)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btnStroke.Transparency = 0.3
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(80, 140, 220)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btnStroke.Transparency = 0.6
+    end)
+    
+    return btn
+end
+
+-- Chain精通分區
+local chainMasteryBtn = createSectionButton("Chain精通", 1, SideBar)
+local chainMasteryContent = Instance.new("ScrollingFrame", Content)
+chainMasteryContent.Size = UDim2.new(1, 0, 1, 0)
+chainMasteryContent.Position = UDim2.new(0, 0, 0, 0)
+chainMasteryContent.BackgroundTransparency = 1
+chainMasteryContent.BorderSizePixel = 0
+chainMasteryContent.ScrollBarThickness = 6
+chainMasteryContent.CanvasSize = UDim2.new(0, 0, 0, 250) -- 增加高度以容納新按鈕
+chainMasteryContent.Visible = false
+
+-- 功能狀態變量
+local invisSpeedEnabled = false
+local autoAttackEnabled = false
+local autoAttackTPEnabled = false
+local disguiseAttackEnabled = false
+
+-- 創建按鈕
+local invisSpeedBtn = createButton("隱形+加速", 1, chainMasteryContent, 45)
+local autoAttackBtn = createButton("自動攻擊", 2, chainMasteryContent, 45)
+local autoAttackTPBtn = createButton("自動攻擊+瞬移", 3, chainMasteryContent, 45)
+local disguiseAttackBtn = createButton("偽裝自動攻擊", 4, chainMasteryContent, 45)
+local serverHopBtn = createButton("跳服(12-14人)", 5, chainMasteryContent, 45) -- 新增Server Hop按鈕
+
+-- 更新按鈕文字的函數
+local function updateButtonText(btn, enabled, baseName)
+    btn.Text = baseName .. (enabled and " (開啟)" or " (關閉)")
+    btn.BackgroundColor3 = enabled and Color3.fromRGB(60, 180, 60) or Color3.fromRGB(80, 140, 220)
+end
+
+-- Server Hop功能 (鎖定12-14人伺服器)
+local function serverHop()
+    local gameId = game.PlaceId
+    local success, result = pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. gameId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        
+        if servers.data then
+            local validServers = {}
+            for _, server in ipairs(servers.data) do
+                -- 只選擇12-14人的伺服器，且不是當前伺服器
+                if server.id ~= game.JobId and server.playing >= 12 and server.playing <= 14 then
+                    table.insert(validServers, server.id)
+                end
+            end
+            
+            if #validServers > 0 then
+                local randomServer = validServers[math.random(1, #validServers)]
+                TeleportService:TeleportToPlaceInstance(gameId, randomServer, LocalPlayer)
+                return true
+            else
+                -- 如果沒有找到12-14人的伺服器，嘗試獲取更多伺服器列表
+                local moreServers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. gameId .. "/servers/Public?sortOrder=Desc&limit=100"))
+                if moreServers.data then
+                    for _, server in ipairs(moreServers.data) do
+                        if server.id ~= game.JobId and server.playing >= 12 and server.playing <= 14 then
+                            table.insert(validServers, server.id)
+                        end
+                    end
+                    
+                    if #validServers > 0 then
+                        local randomServer = validServers[math.random(1, #validServers)]
+                        TeleportService:TeleportToPlaceInstance(gameId, randomServer, LocalPlayer)
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end)
+    
+    if not success or not result then
+        -- 如果找不到12-14人的伺服器，給出提示並使用普通跳轉
+        print("找不到12-14人的伺服器，使用普通跳轉")
+        TeleportService:Teleport(gameId, LocalPlayer)
+    end
+end
+
+-- 尋找最近玩家的函數
+local function findClosestPlayer()
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local myPosition = myChar.HumanoidRootPart.Position
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - myPosition).Magnitude
+            if distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- 尋找15單位內最近玩家的函數
+local function findClosestPlayerInRange(range)
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local myPosition = myChar.HumanoidRootPart.Position
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - myPosition).Magnitude
+            if distance <= range and distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- 尋找最多人聚集的地點（限制高度250以下且距離原點1000單位內）
+local function findPlayerCluster()
+    local players = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local playerPos = player.Character.HumanoidRootPart.Position
+            local distanceFromOrigin = (playerPos - Vector3.new(0, 0, 0)).Magnitude
+            -- 只考慮高度250以下且距離原點1000單位內的玩家
+            if playerPos.Y <= 250 and distanceFromOrigin <= 1000 then
+                table.insert(players, player)
+            end
+        end
+    end
+    
+    if #players == 0 then return nil end
+    
+    local bestPlayer = nil
+    local maxNearbyCount = 0
+    
+    for _, player in pairs(players) do
+        local nearbyCount = 0
+        local playerPos = player.Character.HumanoidRootPart.Position
+        
+        for _, otherPlayer in pairs(players) do
+            if otherPlayer ~= player then
+                local distance = (otherPlayer.Character.HumanoidRootPart.Position - playerPos).Magnitude
+                if distance <= 20 then -- 20單位內算作聚集
+                    nearbyCount = nearbyCount + 1
+                end
+            end
+        end
+        
+        if nearbyCount > maxNearbyCount then
+            maxNearbyCount = nearbyCount
+            bestPlayer = player
+        end
+    end
+    
+    return bestPlayer
+end
+
+-- 設定玩家速度
+local function setPlayerSpeed(speed)
+    local myChar = LocalPlayer.Character
+    if myChar and myChar:FindFirstChild("Humanoid") then
+        myChar.Humanoid.WalkSpeed = speed
+    end
+end
+
+-- 瞬移到玩家
+local function teleportToPlayer(targetPlayer)
+    local myChar = LocalPlayer.Character
+    if myChar and myChar:FindFirstChild("HumanoidRootPart") and 
+       targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        myChar.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(2, 0, 2)
+    end
+end
+
+-- 攻擊玩家
+local function attackPlayer(targetPlayer)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Right Arm") then
+        local args = {
+            [1] = targetPlayer.Character:FindFirstChild("Right Arm")
+        }
+        ReplicatedStorage.GeneralHit:FireServer(unpack(args))
+    end
+end
+
+-- 隱形+加速功能
+invisSpeedBtn.MouseButton1Click:Connect(function()
+    invisSpeedEnabled = not invisSpeedEnabled
+    updateButtonText(invisSpeedBtn, invisSpeedEnabled, "隱形+加速")
+    
+    if invisSpeedEnabled then
+        -- 執行隱形加速序列
+        spawn(function()
+            -- 點擊Ghost
+            if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
+                fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
+                wait(0.1)
+            end
+            
+            -- 激活隱形
+            if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
+                ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
+                wait(0.1)
+            end
+            
+            -- 點擊Chain
+            if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
+                fireclickdetector(workspace.Lobby.Chain.ClickDetector)
+                wait(0.1)
+            end
+            
+            -- 設定速度為50
+            setPlayerSpeed(50)
+        end)
+    else
+        -- 恢復正常速度
+        setPlayerSpeed(16)
+    end
+end)
+
+-- 自動攻擊功能
+autoAttackBtn.MouseButton1Click:Connect(function()
+    autoAttackEnabled = not autoAttackEnabled
+    updateButtonText(autoAttackBtn, autoAttackEnabled, "自動攻擊")
+    
+    if autoAttackEnabled then
+        spawn(function()
+            while autoAttackEnabled do
+                local target = findClosestPlayer()
+                if target then
+                    attackPlayer(target)
+                end
+                wait(0.6)
+            end
+        end)
+    end
+end)
+
+-- 自動攻擊+瞬移功能
+autoAttackTPBtn.MouseButton1Click:Connect(function()
+    autoAttackTPEnabled = not autoAttackTPEnabled
+    updateButtonText(autoAttackTPBtn, autoAttackTPEnabled, "自動攻擊+瞬移")
+    
+    if autoAttackTPEnabled then
+        spawn(function()
+            while autoAttackTPEnabled do
+                local target = findPlayerCluster()
+                if target then
+                    teleportToPlayer(target)
+                    wait(0.1)
+                    attackPlayer(target)
+                end
+                wait(0.6)
+            end
+        end)
+    end
+end)
+
+-- 偽裝自動攻擊功能
+local disguiseAttackConnection
+disguiseAttackBtn.MouseButton1Click:Connect(function()
+    disguiseAttackEnabled = not disguiseAttackEnabled
+    updateButtonText(disguiseAttackBtn, disguiseAttackEnabled, "偽裝自動攻擊")
+    
+    if disguiseAttackEnabled then
+        spawn(function()
+            while disguiseAttackEnabled do
+                local target = findClosestPlayerInRange(15)
+                if target then
+                    attackPlayer(target)
+                end
+                wait(0.6)
+            end
+        end)
+    end
+end)
+
+-- Server Hop功能 (鎖定12-14人)
+serverHopBtn.MouseButton1Click:Connect(function()
+    serverHopBtn.Text = "尋找12-14人伺服器..."
+    serverHopBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 50)
+    wait(0.1) -- 讓UI有時間更新
+    serverHop()
+end)
+
+-- Chain精通分區點擊事件
+chainMasteryBtn.MouseButton1Click:Connect(function()
+    -- 隱藏所有其他內容
+    for _, child in pairs(Content:GetChildren()) do
+        if child:IsA("ScrollingFrame") then
+            child.Visible = false
+        end
+    end
+    -- 顯示Chain精通內容
+    chainMasteryContent.Visible = true
+end)
+
+-- 預設顯示Chain精通
+chainMasteryContent.Visible = true
