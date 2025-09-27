@@ -252,7 +252,7 @@ local invisSpeedBtn = createButton("隱形+加速", 1, chainMasteryContent, 45)
 local autoAttackBtn = createButton("自動攻擊", 2, chainMasteryContent, 45)
 local autoAttackTPBtn = createButton("自動攻擊+瞬移", 3, chainMasteryContent, 45)
 local disguiseAttackBtn = createButton("偽裝自動攻擊", 4, chainMasteryContent, 45)
-local serverHopBtn = createButton("跳服(12-14人)", 5, chainMasteryContent, 45) -- 新增Server Hop按鈕
+local serverHopBtn = createButton("Server Hop (12-14人)", 5, chainMasteryContent, 45) -- 新增Server Hop按鈕
 
 -- 更新按鈕文字的函數
 local function updateButtonText(btn, enabled, baseName)
