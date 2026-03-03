@@ -234,7 +234,7 @@ chainMasteryContent.Position = UDim2.new(0, 0, 0, 0)
 chainMasteryContent.BackgroundTransparency = 1
 chainMasteryContent.BorderSizePixel = 0
 chainMasteryContent.ScrollBarThickness = 6
-chainMasteryContent.CanvasSize = UDim2.new(0, 0, 0, 250) -- 增加高度以容納新按鈕
+chainMasteryContent.CanvasSize = UDim2.new(0, 0, 0, 250)
 chainMasteryContent.Visible = false
 
 -- 功能狀態變量
@@ -248,7 +248,7 @@ local invisSpeedBtn = createButton("隱形+加速", 1, chainMasteryContent, 45)
 local autoAttackBtn = createButton("自動攻擊", 2, chainMasteryContent, 45)
 local autoAttackTPBtn = createButton("自動攻擊+瞬移", 3, chainMasteryContent, 45)
 local disguiseAttackBtn = createButton("偽裝自動攻擊", 4, chainMasteryContent, 45)
-local serverHopBtn = createButton("Server Hop (12-14人)", 5, chainMasteryContent, 45) -- 新增Server Hop按鈕
+local serverHopBtn = createButton("Server Hop (12-14人)", 5, chainMasteryContent, 45)
 
 -- 更新按鈕文字的函數
 local function updateButtonText(btn, enabled, baseName)
@@ -265,7 +265,6 @@ local function serverHop()
         if servers.data then
             local validServers = {}
             for _, server in ipairs(servers.data) do
-                -- 只選擇12-14人的伺服器，且不是當前伺服器
                 if server.id ~= game.JobId and server.playing >= 12 and server.playing <= 14 then
                     table.insert(validServers, server.id)
                 end
@@ -276,7 +275,6 @@ local function serverHop()
                 TeleportService:TeleportToPlaceInstance(gameId, randomServer, LocalPlayer)
                 return true
             else
-                -- 如果沒有找到12-14人的伺服器，嘗試獲取更多伺服器列表
                 local moreServers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. gameId .. "/servers/Public?sortOrder=Desc&limit=100"))
                 if moreServers.data then
                     for _, server in ipairs(moreServers.data) do
@@ -297,7 +295,6 @@ local function serverHop()
     end)
     
     if not success or not result then
-        -- 如果找不到12-14人的伺服器，給出提示並使用普通跳轉
         print("找不到12-14人的伺服器，使用普通跳轉")
         TeleportService:Teleport(gameId, LocalPlayer)
     end
@@ -351,44 +348,63 @@ local function findClosestPlayerInRange(range)
     return closestPlayer
 end
 
--- 尋找最多人聚集的地點（限制高度250以下且距離原點1000單位內）
+-- =====================================================
+-- 更新後的連鎖判定：找全場連鎖數最多的目標
+-- 保留原本的位置範圍限制（Y <= 250，距原點 <= 1000）
+-- =====================================================
 local function findPlayerCluster()
+    -- 先收集所有符合範圍限制的玩家
     local players = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local playerPos = player.Character.HumanoidRootPart.Position
             local distanceFromOrigin = (playerPos - Vector3.new(0, 0, 0)).Magnitude
-            -- 只考慮高度250以下且距離原點1000單位內的玩家
             if playerPos.Y <= 250 and distanceFromOrigin <= 1000 then
                 table.insert(players, player)
             end
         end
     end
-    
+
     if #players == 0 then return nil end
-    
-    local bestPlayer = nil
-    local maxNearbyCount = 0
-    
-    for _, player in pairs(players) do
-        local nearbyCount = 0
-        local playerPos = player.Character.HumanoidRootPart.Position
-        
-        for _, otherPlayer in pairs(players) do
-            if otherPlayer ~= player then
-                local distance = (otherPlayer.Character.HumanoidRootPart.Position - playerPos).Magnitude
-                if distance <= 20 then -- 20單位內算作聚集
-                    nearbyCount = nearbyCount + 1
+
+    -- BFS 計算從某個玩家出發，連鎖能打到的總人數
+    local function countChainHits(startPlayer)
+        local visited = {}
+        local queue = {startPlayer}
+        visited[startPlayer] = true
+        local count = 0
+
+        while #queue > 0 do
+            local current = table.remove(queue, 1)
+            count = count + 1
+            local currentPos = current.Character.HumanoidRootPart.Position
+
+            for _, other in pairs(players) do
+                if not visited[other] then
+                    local dist = (other.Character.HumanoidRootPart.Position - currentPos).Magnitude
+                    if dist <= 20 then
+                        visited[other] = true
+                        table.insert(queue, other)
+                    end
                 end
             end
         end
-        
-        if nearbyCount > maxNearbyCount then
-            maxNearbyCount = nearbyCount
+
+        return count
+    end
+
+    -- 直接從全場所有符合條件的玩家中，找連鎖數最多的目標
+    local bestPlayer = nil
+    local maxChain = 0
+
+    for _, player in pairs(players) do
+        local chainCount = countChainHits(player)
+        if chainCount > maxChain then
+            maxChain = chainCount
             bestPlayer = player
         end
     end
-    
+
     return bestPlayer
 end
 
@@ -425,31 +441,25 @@ invisSpeedBtn.MouseButton1Click:Connect(function()
     updateButtonText(invisSpeedBtn, invisSpeedEnabled, "隱形+加速")
     
     if invisSpeedEnabled then
-        -- 執行隱形加速序列
         spawn(function()
-            -- 點擊Ghost
             if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
                 fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
                 wait(0.1)
             end
             
-            -- 激活隱形
             if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
                 ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
                 wait(0.1)
             end
             
-            -- 點擊Chain
             if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
                 fireclickdetector(workspace.Lobby.Chain.ClickDetector)
                 wait(0.1)
             end
             
-            -- 設定速度為50
             setPlayerSpeed(50)
         end)
     else
-        -- 恢復正常速度
         setPlayerSpeed(16)
     end
 end)
@@ -472,7 +482,7 @@ autoAttackBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 自動攻擊+瞬移功能
+-- 自動攻擊+瞬移功能（更新後：選全場連鎖數最多的目標）
 autoAttackTPBtn.MouseButton1Click:Connect(function()
     autoAttackTPEnabled = not autoAttackTPEnabled
     updateButtonText(autoAttackTPBtn, autoAttackTPEnabled, "自動攻擊+瞬移")
@@ -493,7 +503,6 @@ autoAttackTPBtn.MouseButton1Click:Connect(function()
 end)
 
 -- 偽裝自動攻擊功能
-local disguiseAttackConnection
 disguiseAttackBtn.MouseButton1Click:Connect(function()
     disguiseAttackEnabled = not disguiseAttackEnabled
     updateButtonText(disguiseAttackBtn, disguiseAttackEnabled, "偽裝自動攻擊")
@@ -515,19 +524,17 @@ end)
 serverHopBtn.MouseButton1Click:Connect(function()
     serverHopBtn.Text = "尋找12-14人伺服器..."
     serverHopBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 50)
-    wait(0.1) -- 讓UI有時間更新
+    wait(0.1)
     serverHop()
 end)
 
 -- Chain精通分區點擊事件
 chainMasteryBtn.MouseButton1Click:Connect(function()
-    -- 隱藏所有其他內容
     for _, child in pairs(Content:GetChildren()) do
         if child:IsA("ScrollingFrame") then
             child.Visible = false
         end
     end
-    -- 顯示Chain精通內容
     chainMasteryContent.Visible = true
 end)
 
