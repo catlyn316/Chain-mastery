@@ -441,24 +441,7 @@ invisSpeedBtn.MouseButton1Click:Connect(function()
     updateButtonText(invisSpeedBtn, invisSpeedEnabled, "隱形+加速")
     
     if invisSpeedEnabled then
-        spawn(function()
-            if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
-                fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
-                wait(0.1)
-            end
-            
-            if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
-                ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
-                wait(0.1)
-            end
-            
-            if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
-                fireclickdetector(workspace.Lobby.Chain.ClickDetector)
-                wait(0.1)
-            end
-            
-            setPlayerSpeed(50)
-        end)
+        activateInvisSpeed()
     else
         setPlayerSpeed(16)
     end
@@ -482,6 +465,28 @@ autoAttackBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- 隱形+加速序列（抽出為獨立函數，供死亡重啟使用）
+local function activateInvisSpeed()
+    spawn(function()
+        if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
+            fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
+            wait(0.1)
+        end
+        
+        if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
+            ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
+            wait(0.1)
+        end
+        
+        if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
+            fireclickdetector(workspace.Lobby.Chain.ClickDetector)
+            wait(0.1)
+        end
+        
+        setPlayerSpeed(50)
+    end)
+end
+
 -- 自動攻擊+瞬移功能（更新後：選全場連鎖數最多的目標）
 autoAttackTPBtn.MouseButton1Click:Connect(function()
     autoAttackTPEnabled = not autoAttackTPEnabled
@@ -489,13 +494,38 @@ autoAttackTPBtn.MouseButton1Click:Connect(function()
     
     if autoAttackTPEnabled then
         spawn(function()
+            local wasDead = false
+
             while autoAttackTPEnabled do
-                local target = findPlayerCluster()
-                if target then
-                    teleportToPlayer(target)
-                    wait(0.1)
-                    attackPlayer(target)
+                local char = LocalPlayer.Character
+                local humanoid = char and char:FindFirstChild("Humanoid")
+
+                -- 偵測死亡：Humanoid不存在或Health為0
+                local isDead = not humanoid or humanoid.Health <= 0
+
+                if isDead then
+                    if not wasDead then
+                        wasDead = true
+                    end
+                else
+                    -- 剛從死亡復活
+                    if wasDead then
+                        wasDead = false
+                        wait(1) -- 等待復活動畫/重生完成
+                        if autoAttackTPEnabled and invisSpeedEnabled then
+                            activateInvisSpeed()
+                            wait(0.5) -- 等隱形加速生效
+                        end
+                    end
+
+                    local target = findPlayerCluster()
+                    if target then
+                        teleportToPlayer(target)
+                        wait(0.1)
+                        attackPlayer(target)
+                    end
                 end
+
                 wait(0.6)
             end
         end)
