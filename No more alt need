@@ -348,12 +348,34 @@ local function findClosestPlayerInRange(range)
     return closestPlayer
 end
 
--- =====================================================
--- 更新後的連鎖判定：找全場連鎖數最多的目標
--- 保留原本的位置範圍限制（Y <= 250，距原點 <= 1000）
--- =====================================================
+-- BFS 計算從某個玩家出發，連鎖能打到的總人數
+local function countChainHits(startPlayer, playerList)
+    local visited = {}
+    local queue = {startPlayer}
+    visited[startPlayer] = true
+    local count = 0
+
+    while #queue > 0 do
+        local current = table.remove(queue, 1)
+        count = count + 1
+        local currentPos = current.Character.HumanoidRootPart.Position
+
+        for _, other in pairs(playerList) do
+            if not visited[other] then
+                local dist = (other.Character.HumanoidRootPart.Position - currentPos).Magnitude
+                if dist <= 20 then
+                    visited[other] = true
+                    table.insert(queue, other)
+                end
+            end
+        end
+    end
+
+    return count
+end
+
+-- 尋找全場連鎖數最多的目標（保留位置範圍限制）
 local function findPlayerCluster()
-    -- 先收集所有符合範圍限制的玩家
     local players = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -365,47 +387,20 @@ local function findPlayerCluster()
         end
     end
 
-    if #players == 0 then return nil end
+    if #players == 0 then return nil, 0 end
 
-    -- BFS 計算從某個玩家出發，連鎖能打到的總人數
-    local function countChainHits(startPlayer)
-        local visited = {}
-        local queue = {startPlayer}
-        visited[startPlayer] = true
-        local count = 0
-
-        while #queue > 0 do
-            local current = table.remove(queue, 1)
-            count = count + 1
-            local currentPos = current.Character.HumanoidRootPart.Position
-
-            for _, other in pairs(players) do
-                if not visited[other] then
-                    local dist = (other.Character.HumanoidRootPart.Position - currentPos).Magnitude
-                    if dist <= 20 then
-                        visited[other] = true
-                        table.insert(queue, other)
-                    end
-                end
-            end
-        end
-
-        return count
-    end
-
-    -- 直接從全場所有符合條件的玩家中，找連鎖數最多的目標
     local bestPlayer = nil
     local maxChain = 0
 
     for _, player in pairs(players) do
-        local chainCount = countChainHits(player)
+        local chainCount = countChainHits(player, players)
         if chainCount > maxChain then
             maxChain = chainCount
             bestPlayer = player
         end
     end
 
-    return bestPlayer
+    return bestPlayer, maxChain
 end
 
 -- 設定玩家速度
@@ -518,8 +513,8 @@ autoAttackTPBtn.MouseButton1Click:Connect(function()
                         end
                     end
 
-                    local target = findPlayerCluster()
-                    if target then
+                    local target, chainCount = findPlayerCluster()
+                    if target and chainCount >= 2 then
                         teleportToPlayer(target)
                         wait(0.1)
                         attackPlayer(target)
