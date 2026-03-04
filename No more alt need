@@ -435,6 +435,28 @@ local function attackPlayer(targetPlayer)
     end
 end
 
+-- 隱形+加速序列（獨立函數）
+local function activateInvisSpeed()
+    spawn(function()
+        if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
+            fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
+            wait(0.1)
+        end
+        
+        if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
+            ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
+            wait(0.1)
+        end
+        
+        if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
+            fireclickdetector(workspace.Lobby.Chain.ClickDetector)
+            wait(0.1)
+        end
+        
+        setPlayerSpeed(50)
+    end)
+end
+
 -- 隱形+加速功能
 invisSpeedBtn.MouseButton1Click:Connect(function()
     invisSpeedEnabled = not invisSpeedEnabled
@@ -464,28 +486,6 @@ autoAttackBtn.MouseButton1Click:Connect(function()
         end)
     end
 end)
-
--- 隱形+加速序列（抽出為獨立函數，供死亡重啟使用）
-local function activateInvisSpeed()
-    spawn(function()
-        if workspace.Lobby:FindFirstChild("Ghost") and workspace.Lobby.Ghost:FindFirstChild("ClickDetector") then
-            fireclickdetector(workspace.Lobby.Ghost.ClickDetector)
-            wait(0.1)
-        end
-        
-        if ReplicatedStorage:FindFirstChild("Ghostinvisibilityactivated") then
-            ReplicatedStorage.Ghostinvisibilityactivated:FireServer()
-            wait(0.1)
-        end
-        
-        if workspace.Lobby:FindFirstChild("Chain") and workspace.Lobby.Chain:FindFirstChild("ClickDetector") then
-            fireclickdetector(workspace.Lobby.Chain.ClickDetector)
-            wait(0.1)
-        end
-        
-        setPlayerSpeed(50)
-    end)
-end
 
 -- 自動攻擊+瞬移功能（更新後：選全場連鎖數最多的目標）
 autoAttackTPBtn.MouseButton1Click:Connect(function()
