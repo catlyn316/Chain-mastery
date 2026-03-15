@@ -515,9 +515,21 @@ autoAttackTPBtn.MouseButton1Click:Connect(function()
 
                     local target, chainCount = findPlayerCluster()
                     if target and chainCount >= 2 then
-                        teleportToPlayer(target)
-                        wait(0.1)
-                        attackPlayer(target)
+                        -- 持續傳送到目標直到攻擊發出
+                        local attacked = false
+                        while autoAttackTPEnabled and not attacked do
+                            teleportToPlayer(target)
+                            wait(0.05)
+                            local myChar = LocalPlayer.Character
+                            if myChar and myChar:FindFirstChild("HumanoidRootPart") and
+                               target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                                local dist = (myChar.HumanoidRootPart.Position - target.Character.HumanoidRootPart.Position).Magnitude
+                                if dist <= 10 then
+                                    attackPlayer(target)
+                                    attacked = true
+                                end
+                            end
+                        end
                     end
                 end
 
